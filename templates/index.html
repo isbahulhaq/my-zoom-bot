@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Zoom Dashboard (Name Type Feature)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background-color: black;
+    margin: 0;
+    padding: 0;
+    color: white;
+    overflow: hidden;
+}
+
+/* LOGIN SECTION */
+#loginSection {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    position: relative;
+}
+
+#particleCanvas {
+    position: absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    z-index: -1;
+}
+
+#loginBox {
+    background: rgba(18, 18, 18, 0.88);
+    padding: 24px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    width: 360px;
+    text-align: center;
+    z-index: 1;
+}
+#loginBox input {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 6px;
+    border: 1px solid #333;
+    background: #222;
+    color: white;
+}
+#loginBox button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    border-radius: 6px;
+    border: none;
+    background: #4CAF50;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+}
+#loginError { color: #ff6b6b; display:none; }
+
+/* DASHBOARD */
+.container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px;
+}
+.left, .center, .right {
+    background: #1a1a1a;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+.left { flex:1; }
+.center { flex:1; text-align:center; }
+.right { flex:1; text-align:right; }
+
+table { width:100%; border-collapse:collapse; margin-bottom: 15px; }
+th, td { border:1px solid #333; padding:10px; }
+
+/* FORM */
+.form-box {
+    padding:15px; background:#2a2a2a; border-radius:5px;
+}
+input, select {
+    width:85%; padding:8px; margin:5px 0;
+    background:#333; color:white;
+    border:1px solid #444; border-radius:4px;
+}
+
+/* CHART */
+.capacity {
+    position: relative;
+    width: 200px; height: 200px;
+    margin: 20px auto;
+    border-radius: 50%;
+    background: conic-gradient(red 0%, #1a1a1a 0%);
+}
+.capacity-inner {
+    position:absolute; top:20px; left:20px;
+    width:160px; height:160px;
+    background:black; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px;
+}
+
+/* hides */
+.hidden { display:none !important; }
+#dashboard { display:none; }
+</style>
+</head>
+<body>
+
+
+<!-- LOGIN -->
+<div id="loginSection">
+    <canvas id="particleCanvas"></canvas>
+    <div id="loginBox">
+        <h2>Login</h2>
+        <form id="loginForm">
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <button type="submit">Let me in</button>
+            <p id="loginError">Invalid credentials!</p>
+        </form>
+    </div>
+</div>
+
+
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+    <h2 style="text-align:center;">Zoom Dashboard Pro</h2>
+
+    <div class="container">
+
+        <!-- LEFT -->
+        <div class="left" id="meetingsSection">
+            <h3>Live Logs</h3>
+            <table id="meetingsTable">
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Reason</th>
+                </tr>
+            </table>
+        </div>
+
+        <!-- CENTER -->
+        <div class="center" id="formSection">
+            <div class="form-box">
+                <h3>Add Meeting</h3>
+
+                <form id="meetingForm">
+                    <label>Meeting ID</label>
+                    <input type="text" id="meetingId" required>
+
+                    <label>Password</label>
+                    <input type="text" id="meetingPassword" required>
+
+                    <label>Members Qty</label>
+                    <input type="number" id="members" min="10" step="10" required>
+
+                    <label>Name Type</label>
+                    <select id="nameType" required>
+                        <option value="mix_all">Mix All</option>
+                        <option value="indian_mix">Indian Mix</option>
+                        <option value="hindu">Hindu</option>
+                        <option value="muslim">Muslim</option>
+                        <option value="english">English</option>
+                        <option value="hindi">Hindi</option>
+                    </select>
+
+                    <label>Timeout (sec)</label>
+                    <input type="number" id="timeout" min="60" value="120" required>
+
+                    <label>Wait Time</label>
+                    <input type="number" id="waitTime" required>
+
+                    <button class="small" type="submit">Start Meeting</button>
+                    <button class="danger" type="button" onclick="endMeeting()">End Meeting</button>
+                </form>
+
+                <div id="loadingBox" class="loading-box" style="display:none;">
+                    <i>Processing...</i>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="right" id="chartSection">
+            <h3>Capacity</h3>
+            <p>Total: 8000</p>
+
+            <div class="capacity" id="capacityCircle">
+                <div class="capacity-inner" id="capacityText">0%</div>
+            </div>
+
+            <div id="usageInfo">Usage: 0 / 8000</div>
+        </div>
+
+    </div>
+</div>
+
+
+
+<script>
+/* PARTICLES BACKGROUND */
+const canvas=document.getElementById('particleCanvas');
+const ctx=canvas.getContext('2d');
+canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+let particles=[];
+for(let i=0;i<80;i++){
+    particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:2+Math.random()*2,dx:1-Math.random()*2,dy:1-Math.random()*2});
+}
+function animate(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    particles.forEach(p=>{
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle="rgba(0,200,255,0.75)"; ctx.fill();
+        p.x+=p.dx; p.y+=p.dy;
+        if(p.x<0||p.x>canvas.width)p.dx*=-1;
+        if(p.y<0||p.y>canvas.height)p.dy*=-1;
+    });
+    requestAnimationFrame(animate);
+}
+animate();
+
+
+/* LOGIN SYSTEM */
+document.getElementById("loginForm").addEventListener("submit",(e)=>{
+    e.preventDefault();
+    if(document.getElementById("email").value==="isbahaulhaq692@gmail.com" &&
+       document.getElementById("password").value==="20140204547"){
+        document.getElementById("loginSection").style.display="none";
+        document.getElementById("dashboard").style.display="block";
+    } else {
+        document.getElementById("loginError").style.display="block";
+    }
+});
+
+
+/* CHART */
+function updateChart(usage){
+    let total=8000;
+    let percentage=Math.round((usage/total)*100);
+    if(percentage>100)percentage=100;
+    document.getElementById("capacityCircle").style.background=
+        `conic-gradient(red ${percentage}%, #1a1a1a 0%)`;
+    document.getElementById("capacityText").innerText=percentage+"%";
+    document.getElementById("usageInfo").innerText=`Usage: ${usage} / 8000`;
+}
+
+
+/* MEETING START */
+document.getElementById("meetingForm").addEventListener("submit",async(e)=>{
+    e.preventDefault();
+    document.getElementById("loadingBox").style.display="block";
+
+    let id=document.getElementById("meetingId").value;
+    let pass=document.getElementById("meetingPassword").value;
+    let mem=document.getElementById("members").value;
+    let tOut=document.getElementById("timeout").value;
+    let wait=document.getElementById("waitTime").value;
+    let nType=document.getElementById("nameType").value;
+
+    updateChart(parseInt(mem));
+
+    try{
+        await fetch(`/start?meetingid=${id}&password=${pass}&waittime=${wait}&name_type=${nType}`);
+
+        const fd=new FormData();
+        fd.append("meeting_id",id);
+        fd.append("password",pass);
+        fd.append("members",mem);
+        fd.append("timeout",tOut);
+        fd.append("name_type",nType);
+
+        await fetch("/join",{method:"POST",body:fd});
+        alert("Meeting Started!");
+
+    }catch(err){
+        alert("Backend not connected right now.");
+    }
+    document.getElementById("loadingBox").style.display="none";
+});
+
+async function endMeeting(){
+    document.getElementById("loadingBox").style.display="block";
+    await fetch("/end");
+    updateChart(0);
+    alert("Meeting Ended");
+    document.getElementById("loadingBox").style.display="none";
+}
+
+
+/* LIVE LOGS AUTO REFRESH */
+async function loadLogs(){
+    try{
+        let res=await fetch("/logs");
+        let logs=await res.json();
+
+        let table=document.getElementById("meetingsTable");
+        table.innerHTML=`
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Reason</th>
+            </tr>
+        `;
+
+        logs.forEach((log,i)=>{
+            let row=table.insertRow();
+            row.insertCell(0).innerHTML=i+1;
+            row.insertCell(1).innerHTML=log.name;
+            row.insertCell(2).innerHTML=
+                log.status==="success"
+                ? "<span style='color:#00ff00;'>Success</span>"
+                : "<span style='color:#ff4444;'>Failed</span>";
+            row.insertCell(3).innerHTML=log.reason;
+        });
+
+    }catch(e){
+        console.log("Log error:",e);
+    }
+}
+
+/* refresh every 2 seconds */
+setInterval(loadLogs,2000);
+</script>
+</body>
+</html>

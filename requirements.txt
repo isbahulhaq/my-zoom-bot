@@ -1,0 +1,7 @@
+Flask==2.2.5
+Werkzeug==2.2.3
+playwright==1.44.0
+indian-names==0.1
+nest_asyncio==1.5.4
+gunicorn
+pymongo        # ONLY if MongoDB chahiye
